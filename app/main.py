@@ -1,5 +1,9 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, File, UploadFile, HTTPException
 from app.neo4j_connector import Neo4jConnector
+import os
+from app.services.ocr_service import OCRService
+from app.services.triplet_extractor_service import TripletExtractorService
+from app.model.triplet import TripletResponse
 
 app = FastAPI(title="Knowledge Graph Schema Generator",
               description="A service to extract triplets from text and generate a schema for a knowledge graph.")
@@ -36,3 +40,15 @@ def get_entities():
 def get_relationships():
     rels = neo4j.get_relationships()
     return {"relationships": [str(rel) for rel in rels]}
+
+@app.post("/extract-triplets/")
+async def extract_triplets(file: UploadFile = File(...)):
+    try:
+        content = await file.read()
+        file_extension = os.path.splitext(file.filename)[1].lower()
+        extracted_text = OCRService.ocr_file(content, file_extension)
+        triplets = TripletExtractorService.extract_triples(extracted_text)
+        return TripletResponse(triplets)
+    except Exception as e:
+        print(str(e))
+        raise HTTPException(status_code=500, detail=str(e))
