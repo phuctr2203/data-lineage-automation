@@ -1,45 +1,19 @@
+
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from app.neo4j_connector import Neo4jConnector
 import os
 from app.services.ocr_service import OCRService
 from app.services.triplet_extractor_service import TripletExtractorService
 from app.model.triplet import TripletResponse
+from fastapi import FastAPI, HTTPException
+from app.neo4j_connector import Neo4jConnector
+from app.services.schema_generator import generate_sql_schema
+from pydantic import BaseModel
 
 app = FastAPI(title="Knowledge Graph Schema Generator",
               description="A service to extract triplets from text and generate a schema for a knowledge graph.")
 
 neo4j = Neo4jConnector()
-
-@app.on_event("shutdown")
-def shutdown():
-    neo4j.close()
-
-@app.post("/create-entity/")
-def create_entity(entity_name: str, name: str, description: str = ""):
-    properties = {"name": name, "description": description}
-    node = neo4j.create_entity(entity_name, properties)
-    return {"message": "Entity created", "node": dict(node)}
-
-@app.post("/create-relationship/")
-def create_relationship(entity1_label: str, entity1_name: str,
-                        entity2_label: str, entity2_name: str,
-                        relationship_type: str):
-    rel = neo4j.create_relationship(
-        entity1_label, {"name": entity1_name},
-        entity2_label, {"name": entity2_name},
-        relationship_type
-    )
-    return {"message": "Relationship created", "relationship": str(rel)}
-
-@app.get("/entities/")
-def get_entities():
-    entities = neo4j.get_entities()
-    return {"entities": [dict(node) for node in entities]}
-
-@app.get("/relationships/")
-def get_relationships():
-    rels = neo4j.get_relationships()
-    return {"relationships": [str(rel) for rel in rels]}
 
 @app.post("/extract-triplets/")
 async def extract_triplets(file: UploadFile = File(...)):
@@ -52,3 +26,19 @@ async def extract_triplets(file: UploadFile = File(...)):
     except Exception as e:
         print(str(e))
         raise HTTPException(status_code=500, detail=str(e))
+class QueryPayload(BaseModel):
+    cypher: str
+    
+@app.post("/run-query/")
+def run_query(payload: QueryPayload):
+    try:
+        result = neo4j.query(payload.cypher)
+        return {"data": result}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+    
+@app.get("/generate-schema/")
+def generate_schema():
+    sql_schema = generate_sql_schema(neo4j)
+    return {"sql_schema": sql_schema}
