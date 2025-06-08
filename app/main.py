@@ -1,3 +1,10 @@
+
+from fastapi import FastAPI, File, UploadFile, HTTPException
+from app.neo4j_connector import Neo4jConnector
+import os
+from app.services.ocr_service import OCRService
+from app.services.triplet_extractor_service import TripletExtractorService
+from app.model.triplet import TripletResponse
 from fastapi import FastAPI, HTTPException
 from app.neo4j_connector import Neo4jConnector
 from app.services.schema_generator import generate_sql_schema
@@ -8,6 +15,17 @@ app = FastAPI(title="Knowledge Graph Schema Generator",
 
 neo4j = Neo4jConnector()
 
+@app.post("/extract-triplets/")
+async def extract_triplets(file: UploadFile = File(...)):
+    try:
+        content = await file.read()
+        file_extension = os.path.splitext(file.filename)[1].lower()
+        extracted_text = OCRService.ocr_file(content, file_extension)
+        triplets = TripletExtractorService.extract_triples(extracted_text)
+        return TripletResponse(triplets)
+    except Exception as e:
+        print(str(e))
+        raise HTTPException(status_code=500, detail=str(e))
 class QueryPayload(BaseModel):
     cypher: str
     
