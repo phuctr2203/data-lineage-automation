@@ -19,7 +19,10 @@ async def extract_triplets(file: UploadFile = File(...)):
         content = await file.read()
         file_extension = os.path.splitext(file.filename)[1].lower()
         extracted_text = OCRService.ocr_file(content, file_extension)
-        triplets = TripletExtractorService.extract_triples(extracted_text)
+        
+        tripet_extractor_service = TripletExtractorService()
+        triplets = tripet_extractor_service.extract_triples(extracted_text)
+        print(len(triplets))
         return TripletResponse(triplets)
     except Exception as e:
         print(str(e))
