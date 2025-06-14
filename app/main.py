@@ -23,7 +23,7 @@ async def extract_triplets(file: UploadFile = File(...)):
         tripet_extractor_service = TripletExtractorService()
         triplets = tripet_extractor_service.extract_triples(extracted_text)
         print(len(triplets))
-        return TripletResponse(triplets)
+        return TripletResponse(triplets=triplets)
     except Exception as e:
         print(str(e))
         raise HTTPException(status_code=500, detail=str(e))
