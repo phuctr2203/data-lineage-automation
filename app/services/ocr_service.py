@@ -9,14 +9,13 @@ from PIL import Image
 from dotenv import load_dotenv
 from io import BytesIO
 import pytesseract
+from app.config import Config
 
-
-load_dotenv()
 
 class OCRService:
     def __init__(self):
-        subscription_key: str = os.getenv('AZURE_SUBSCRIPTION_KEY')
-        endpoint: str = os.getenv('AZURE_ENDPOINT')
+        subscription_key: str = Config.AZURE_SUBSCRIPTION_KEY
+        endpoint: str = Config.AZURE_ENDPOINT
         self.computervision_client: ComputerVisionClient = ComputerVisionClient(endpoint, CognitiveServicesCredentials(subscription_key))
     
     def __ocr_image_azure(self, image: Image.Image) -> str:

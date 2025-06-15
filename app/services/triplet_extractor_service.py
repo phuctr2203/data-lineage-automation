@@ -1,14 +1,12 @@
-import os
 import google.generativeai as genai
 import json
-from dotenv import load_dotenv
 import re
+from app.config import Config
 
-load_dotenv()
 
 class TripletExtractorService:
     def __init__(self):
-        gemini_api_key = os.getenv('GOOGLE_GEMINI_API_KEY')
+        gemini_api_key = Config.GOOGLE_GEMINI_API_KEY
         genai.configure(api_key=gemini_api_key)
         self.model = genai.GenerativeModel('gemini-2.0-flash')
     
