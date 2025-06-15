@@ -1,47 +1,44 @@
 def generate_sql_schema(neo4j_connector):
-    nodes_query = """
+    node_query = """
     MATCH (n)
-    WITH labels(n) AS labels, n LIMIT 100
-    UNWIND labels AS label
-    WITH label, collect(n) AS nodes
-    RETURN label,
-           keys(nodes[0]) AS properties
+    RETURN DISTINCT labels(n) AS labels, keys(n) AS properties
     """
+    node_result = neo4j_connector.query(node_query)
 
-    nodes_result = neo4j_connector.query(nodes_query)
+    tables = {}
+    for record in node_result:
+        label = record['labels'][0] if record['labels'] else None
+        properties = record['properties']
 
-    rels_query = """
+        if not label:
+            continue
+
+        if label not in tables:
+            tables[label] = {
+                "columns": [],
+                "foreign_keys": []
+            }
+
+        for prop in properties:
+            col = (prop, "VARCHAR(255)")
+            if col not in tables[label]["columns"]:
+                tables[label]["columns"].append(col)
+
+        if ("id", "VARCHAR(255)") not in tables[label]["columns"]:
+            tables[label]["columns"].insert(0, ("id", "VARCHAR(255) PRIMARY KEY"))
+
+    rel_query = """
     MATCH (a)-[r]->(b)
     RETURN DISTINCT labels(a) AS startLabels, type(r) AS relType, labels(b) AS endLabels
     """
-
-    rels_result = neo4j_connector.query(rels_query)
-
-    tables = {}
-
-    for node in nodes_result:
-        label = node['label']
-        properties = node['properties']
-
-        columns = []
-        for prop in properties:
-            sql_type = "VARCHAR(255)"
-            columns.append((prop, sql_type))
-
-        pk = 'id' if 'id' in properties else None
-
-        tables[label] = {
-            "columns": columns,
-            "primary_key": pk,
-            "foreign_keys": []
-        }
+    rels_result = neo4j_connector.query(rel_query)
 
     for rel in rels_result:
         start_labels = rel.get('startLabels', [])
         end_labels = rel.get('endLabels', [])
 
         if not start_labels or not end_labels:
-            continue 
+            continue
 
         start_label = start_labels[0]
         end_label = end_labels[0]
@@ -55,28 +52,22 @@ def generate_sql_schema(neo4j_connector):
                 "ref_column": "id"
             })
 
-            if fk_column not in [col[0] for col in tables[start_label]['columns']]:
+            if (fk_column, "VARCHAR(255)") not in tables[start_label]['columns']:
                 tables[start_label]['columns'].append((fk_column, "VARCHAR(255)"))
 
-
     sql_statements = []
-    for table_name, table_info in tables.items():
-        columns_sql = []
-        for col_name, col_type in table_info['columns']:
-            col_def = f"{col_name} {col_type}"
-            if col_name == table_info['primary_key']:
-                col_def += " PRIMARY KEY"
-            columns_sql.append(col_def)
+    for table_name, data in tables.items():
+        cols = ",\n  ".join([f"{name} {type}" for name, type in data['columns']])
+        fks = ",\n  ".join([
+            f"FOREIGN KEY ({fk['column']}) REFERENCES {fk['ref_table']}({fk['ref_column']})"
+            for fk in data['foreign_keys']
+        ])
 
-        fk_sql = []
-        for fk in table_info['foreign_keys']:
-            fk_sql.append(
-                f"FOREIGN KEY ({fk['column']}) REFERENCES {fk['ref_table']}({fk['ref_column']})"
-            )
+        table_def = f"CREATE TABLE {table_name} (\n  {cols}"
+        if fks:
+            table_def += ",\n  " + fks
+        table_def += "\n);"
 
-        all_constraints = columns_sql + fk_sql
-
-        create_table_sql = f"CREATE TABLE {table_name} (\n  " + ",\n  ".join(all_constraints) + "\n);"
-        sql_statements.append(create_table_sql)
+        sql_statements.append(table_def)
 
     return "\n\n".join(sql_statements)
