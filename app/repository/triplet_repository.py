@@ -16,7 +16,7 @@ class TripletRepository:
             "MERGE (e)-[r:RELATIONSHIP {name: triplet.relationship}]->(o)"
         )
         parameters = {"triplets": [t.dict() for t in triplets]}
-        # self.connector.query(cypher_query=query, parameters=parameters)
+        self.connector.query(cypher_query=query, parameters=parameters)
 
     
     def get_all_relationships(self) -> TripletResponse:
