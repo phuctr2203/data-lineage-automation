@@ -1,13 +1,11 @@
-
-from fastapi import FastAPI, File, UploadFile, HTTPException
-from app.neo4j_connector import Neo4jConnector
 import os
+from fastapi import FastAPI, File, UploadFile, HTTPException
 from app.services.ocr_service import OCRService
 from app.services.triplet_extractor_service import TripletExtractorService
 from app.model.triplet import TripletResponse
-from fastapi import FastAPI, HTTPException
 from app.neo4j_connector import Neo4jConnector
 from app.services.schema_generator import generate_sql_schema
+from app.services.llm_schema_generator import LLMSchemaGenerator
 from pydantic import BaseModel
 
 app = FastAPI(title="Knowledge Graph Schema Generator",
@@ -38,7 +36,26 @@ def run_query(payload: QueryPayload):
         raise HTTPException(status_code=400, detail=str(e))
     
     
-@app.get("/generate-schema/")
+@app.get(
+    "/generate-schema/",
+    summary="Generate SQL Schema",
+    description=(
+        "Dùng codebase để tạo schema. Lỏ lắm test thử thôi"
+    )
+)
 def generate_schema():
     sql_schema = generate_sql_schema(neo4j)
     return {"sql_schema": sql_schema}
+
+@app.get(
+    "/generate-schema-llm/",
+    summary="Generate SQL Schema (LLM-based)",
+    description=(
+        "Dùng Gemini LLM để sinh schema SQL từ dữ liệu trong Neo4j. "
+    )
+)
+def generate_schema_llm():
+    generator = LLMSchemaGenerator(neo4j)
+    result = generator.generate_sql_schema()
+    
+    return result
