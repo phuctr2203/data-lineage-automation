@@ -4,8 +4,8 @@ from app.repository.triplet_repository import TripletRepository
 
 
 class TripletService:
-    def __init__(self, repository: TripletRepository):
-        self.repository = repository
+    def __init__(self):
+        self.repository = TripletRepository()
 
     def insert_triplets(self, triplets: List[Triplet]) -> TripletResponse:
         self.repository.insert_triplets(triplets)
