@@ -10,6 +10,7 @@ class Neo4jConnector:
             Config.NEO4J_URI,
             auth=(Config.NEO4J_USER, Config.NEO4J_PASSWORD)
         )
+        # self.driver.verify_connectivity()
 
     def close(self):
         self.driver.close()

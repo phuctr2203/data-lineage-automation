@@ -4,7 +4,7 @@ from app.config import Config
 class LLMSchemaGenerator:
     def __init__(self, neo4j_connector):
         self.neo4j = neo4j_connector
-        configure(api_key=Config.GEMINI_API_KEY)
+        configure(api_key=Config.GOOGLE_GEMINI_API_KEY)
         self.model = GenerativeModel("gemini-2.0-flash")
 
     def extract_nodes(self):

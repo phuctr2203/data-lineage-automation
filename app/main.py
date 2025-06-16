@@ -2,11 +2,12 @@ import os
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from app.services.ocr_service import OCRService
 from app.services.triplet_extractor_service import TripletExtractorService
-from app.model.triplet import TripletResponse
+from app.model.triplet import TripletResponse, Triplet
 from app.neo4j_connector import Neo4jConnector
 from app.services.schema_generator import generate_sql_schema
 from app.services.llm_schema_generator import LLMSchemaGenerator
 from pydantic import BaseModel
+from app.services.triplet_service import TripletService
 
 app = FastAPI(title="Knowledge Graph Schema Generator",
               description="A service to extract triplets from text and generate a schema for a knowledge graph.")
@@ -19,11 +20,21 @@ async def extract_triplets(file: UploadFile = File(...)):
         content = await file.read()
         file_extension = os.path.splitext(file.filename)[1].lower()
         extracted_text = OCRService.ocr_file(content, file_extension)
-        triplets = TripletExtractorService.extract_triples(extracted_text)
-        return TripletResponse(triplets)
+        
+        tripet_extractor_service = TripletExtractorService()
+        results = tripet_extractor_service.extract_triples(extracted_text)
+
+        triplets = [Triplet(**triplet) for triplet in results]
+        print(len(triplets))
+        triplet_service = TripletService()
+        triplets_response = triplet_service.insert_triplets(triplets=triplets)
+        print(len(triplets_response.triplets))
+
+        return triplets_response
     except Exception as e:
         print(str(e))
         raise HTTPException(status_code=500, detail=str(e))
+    
 class QueryPayload(BaseModel):
     cypher: str
     
